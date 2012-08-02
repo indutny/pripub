@@ -11,5 +11,8 @@
   },
   "scripts": {
     "test": "mocha --reporter spec --growl test/*-test.js"
+  },
+  "engine": {
+    "node": ">= 0.8.0"
   }
 }
