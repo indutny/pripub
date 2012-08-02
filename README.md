@@ -16,11 +16,11 @@ var pripub = require('pripub');
 // PriPub will use $HOME/.ssh/id_rsa key by default
 var p = pripub.create();
 
-var encoded = p.encode('data');
+var encrypted = p.encrypt('data');
 
-var decoded = p.decode(encoded);
+var decrypted = p.decrypt(encrypted);
 
-console.log(decoded.toString()); // 'data'
+console.log(decrypted.toString()); // 'data'
 
 // Returns public key (even if only private key was specified)
 p.getPublicKey();

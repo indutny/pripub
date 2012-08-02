@@ -24,8 +24,8 @@ class PriPub : public ObjectWrap {
   static v8::Handle<v8::Value> GetPublicKey(const v8::Arguments& args);
   static v8::Handle<v8::Value> SetPublicKey(const v8::Arguments& args);
   static v8::Handle<v8::Value> SetPrivateKey(const v8::Arguments& args);
-  static v8::Handle<v8::Value> Encode(const v8::Arguments& args);
-  static v8::Handle<v8::Value> Decode(const v8::Arguments& args);
+  static v8::Handle<v8::Value> Encrypt(const v8::Arguments& args);
+  static v8::Handle<v8::Value> Decrypt(const v8::Arguments& args);
 
   static int PriPassCallback(char* buf, int size, int rwflag, void* u);
 

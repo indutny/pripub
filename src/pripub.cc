@@ -162,7 +162,7 @@ Handle<Value> PriPub::SetPrivateKey(const Arguments& args) {
 }
 
 
-Handle<Value> PriPub::Encode(const Arguments& args) {
+Handle<Value> PriPub::Encrypt(const Arguments& args) {
   HandleScope scope;
   PriPub* p = ObjectWrap::Unwrap<PriPub>(args.This());
 
@@ -229,7 +229,7 @@ Handle<Value> PriPub::Encode(const Arguments& args) {
 }
 
 
-Handle<Value> PriPub::Decode(const Arguments& args) {
+Handle<Value> PriPub::Decrypt(const Arguments& args) {
   HandleScope scope;
   PriPub* p = ObjectWrap::Unwrap<PriPub>(args.This());
 
@@ -313,8 +313,8 @@ void PriPub::Init(v8::Handle<v8::Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "getPublicKey", PriPub::GetPublicKey);
   NODE_SET_PROTOTYPE_METHOD(t, "setPublicKey", PriPub::SetPublicKey);
   NODE_SET_PROTOTYPE_METHOD(t, "setPrivateKey", PriPub::SetPrivateKey);
-  NODE_SET_PROTOTYPE_METHOD(t, "encode", PriPub::Encode);
-  NODE_SET_PROTOTYPE_METHOD(t, "decode", PriPub::Decode);
+  NODE_SET_PROTOTYPE_METHOD(t, "encrypt", PriPub::Encrypt);
+  NODE_SET_PROTOTYPE_METHOD(t, "decrypt", PriPub::Decrypt);
 
   target->Set(String::NewSymbol("PriPub"), t->GetFunction());
 }
