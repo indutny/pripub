@@ -1,6 +1,6 @@
 {
   "name": "pripub",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "main": "lib/pripub",
   "dependencies": {
     "node-gyp": "~0.6.3",
