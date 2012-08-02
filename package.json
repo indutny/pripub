@@ -1,0 +1,17 @@
+{
+  "name": "pripub",
+  "version": "0.0.1",
+  "private": true,
+  "main": "lib/pripub",
+  "dependencies": {
+    "node-gyp": "~0.6.3",
+    "bindings": "~1.0.0",
+    "prompt": "~0.2.3"
+  },
+  "devDependencies": {
+    "mocha": "~1.3.2"
+  },
+  "scripts": {
+    "test": "mocha --reporter spec --growl test/*-test.js"
+  }
+}
