@@ -2,11 +2,10 @@
   "targets": [
     {
       "target_name": "pripub",
-      "dependencies": [ "deps/openssl/openssl.gyp:openssl" ],
 
       "include_dirs": [
         "src",
-        "deps/openssl/openssl/include",
+        "<(node_root_dir)/deps/openssl/openssl/include",
       ],
 
       "sources": [
