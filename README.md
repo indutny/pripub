@@ -20,7 +20,7 @@ var encoded = p.encode('data');
 
 var decoded = p.decode(encoded);
 
-console.log(decoded); // 'data'
+console.log(decoded.toString()); // 'data'
 
 // Returns public key (even if only private key was specified)
 p.getPublicKey();
