@@ -20,16 +20,32 @@ class PriPub : public ObjectWrap {
 
   static void Init(v8::Handle<v8::Object> target);
 
+  static void* PrivateKeyWorker(void* arg);
+  static void PasswordCallback(uv_async_t* handle, int status);
+  static void LoadCallback(uv_async_t* handle, int status);
+
   static v8::Handle<v8::Value> New(const v8::Arguments& args);
   static v8::Handle<v8::Value> GetPublicKey(const v8::Arguments& args);
   static v8::Handle<v8::Value> SetPublicKey(const v8::Arguments& args);
   static v8::Handle<v8::Value> SetPrivateKey(const v8::Arguments& args);
+  static v8::Handle<v8::Value> SetKeyPassword(const v8::Arguments& args);
   static v8::Handle<v8::Value> Encrypt(const v8::Arguments& args);
   static v8::Handle<v8::Value> Decrypt(const v8::Arguments& args);
 
-  static int PriPassCallback(char* buf, int size, int rwflag, void* u);
+  static int PasswordCallback(char* buf, int size, int rwflag, void* u);
 
  protected:
+  uv_async_t password_cb_;
+  uv_async_t load_cb_;
+
+  uv_sem_t password_sem_;
+
+  pthread_t pri_thread_;
+  BIO* pri_bio_;
+  char pri_pass_[1024];
+  int pri_pass_size_;
+  int pri_err_;
+
   RSA* pri_rsa_;
   RSA* pub_rsa_;
 };

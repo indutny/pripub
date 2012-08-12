@@ -7,6 +7,7 @@
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 #include <openssl/pem.h>
+#include <pthread.h>
 
 #define THROW_OPENSSL_ERROR(msg)\
     {\
@@ -16,42 +17,43 @@
           String::New(msg), String::New(err))));\
     }
 
+#ifndef offset_of
+// g++ in strict mode complains loudly about the system offsetof() macro
+// because it uses NULL as the base address.
+# define offset_of(type, member) \
+  ((intptr_t) ((char *) &(((type *) 8)->member) - 8))
+#endif
+
+#ifndef container_of
+# define container_of(ptr, type, member) \
+  ((type *) ((char *) (ptr) - offset_of(type, member)))
+#endif
+
 namespace pripub {
 
 using namespace v8;
 using namespace node;
 
 static Persistent<String> onpassword_sym;
+static Persistent<String> onload_sym;
 
-PriPub::PriPub() : pri_rsa_(NULL), pub_rsa_(NULL) {
+PriPub::PriPub() : pri_bio_(NULL),
+                   pri_pass_size_(0),
+                   pri_rsa_(NULL),
+                   pub_rsa_(NULL) {
+  uv_async_init(uv_default_loop(), &password_cb_, PasswordCallback);
+  uv_async_init(uv_default_loop(), &load_cb_, LoadCallback);
+  uv_sem_init(&password_sem_, 0);
 }
 
 
 PriPub::~PriPub() {
+  uv_close(reinterpret_cast<uv_handle_t*>(&password_cb_), NULL);
+  uv_close(reinterpret_cast<uv_handle_t*>(&load_cb_), NULL);
+  uv_sem_destroy(&password_sem_);
+
   if (pri_rsa_ != NULL) RSA_free(pri_rsa_);
   if (pub_rsa_ != NULL) RSA_free(pub_rsa_);
-}
-
-
-int PriPub::PriPassCallback(char* buf, int size, int rwflag, void* u) {
-  HandleScope scope;
-  PriPub* p = reinterpret_cast<PriPub*>(u);
-
-  Handle<Value> argv[0];
-  Handle<Value> result = MakeCallback(p->handle_, onpassword_sym, 0, argv);
-
-  if (!Buffer::HasInstance(result)) {
-    return 0;
-  }
-
-  char* in = Buffer::Data(result.As<Object>());
-  int in_size = Buffer::Length(result.As<Object>());
-
-  if (in_size > size) in_size = size;
-
-  memcpy(buf, in, in_size);
-
-  return in_size;
 }
 
 
@@ -145,20 +147,96 @@ Handle<Value> PriPub::SetPrivateKey(const Arguments& args) {
         "Failed to write into BIO buffer")));
   }
 
-  p->pri_rsa_ = PEM_read_bio_RSAPrivateKey(bio,
-                                           NULL,
-                                           PriPub::PriPassCallback,
-                                           p);
-  if (p->pri_rsa_ == NULL) {
-    char err[120];
-    BIO_free_all(bio);
-    ERR_error_string(ERR_get_error(), err);
-    return scope.Close(ThrowException(String::Concat(
-        String::New("Failed to read Private RSA key from BIO buffer: "),
-        String::New(err))));
-  }
+  p->pri_bio_ = bio;
+  pthread_create(&p->pri_thread_, NULL, PrivateKeyWorker, p);
+  p->Ref();
 
   return scope.Close(Null());
+}
+
+
+void* PriPub::PrivateKeyWorker(void* arg) {
+  PriPub* p = reinterpret_cast<PriPub*>(arg);
+
+  p->pri_rsa_ = PEM_read_bio_RSAPrivateKey(p->pri_bio_,
+                                           NULL,
+                                           PriPub::PasswordCallback,
+                                           p);
+  BIO_free_all(p->pri_bio_);
+  if (p->pri_rsa_ == NULL) {
+    // Propagate errors
+    p->pri_err_ = ERR_get_error();
+  }
+
+  uv_async_send(&p->load_cb_);
+
+  return NULL;
+}
+
+
+Handle<Value> PriPub::SetKeyPassword(const Arguments& args) {
+  HandleScope scope;
+
+  PriPub* p = ObjectWrap::Unwrap<PriPub>(args.This());
+
+  if (args.Length() < 1 || !Buffer::HasInstance(args[0])) {
+    return scope.Close(ThrowException(String::New(
+        "First argument should be buffer")));
+  }
+
+  Handle<Object> key = args[0].As<Object>();
+  size_t size = Buffer::Length(key);
+  if (size > sizeof(p->pri_pass_)) {
+    size = sizeof(p->pri_pass_);
+  }
+
+  memcpy(p->pri_pass_, Buffer::Data(key), size);
+  p->pri_pass_size_ = size;
+
+  uv_sem_post(&p->password_sem_);
+
+  return scope.Close(Null());
+}
+
+
+int PriPub::PasswordCallback(char* buf, int size, int rwflag, void* u) {
+  PriPub* p = reinterpret_cast<PriPub*>(u);
+
+  uv_async_send(&p->password_cb_);
+  uv_sem_wait(&p->password_sem_);
+
+  if (p->pri_pass_size_ > size) p->pri_pass_size_ = size;
+  memcpy(buf, p->pri_pass_, p->pri_pass_size_);
+
+  return p->pri_pass_size_;
+}
+
+
+void PriPub::PasswordCallback(uv_async_t* handle, int status) {
+  HandleScope scope;
+  PriPub* p = container_of(handle, PriPub, password_cb_);
+
+  Handle<Value> argv[0];
+  MakeCallback(p->handle_, onpassword_sym, 0, argv);
+}
+
+
+void PriPub::LoadCallback(uv_async_t* handle, int status) {
+  HandleScope scope;
+  PriPub* p = container_of(handle, PriPub, load_cb_);
+
+  Handle<Value> error = Null();
+  if (p->pri_rsa_ == NULL) {
+    char err[120];
+    ERR_error_string(p->pri_err_, err);
+    error = Exception::Error(String::Concat(
+          String::New("Failed to load private key: "),
+          String::New(err)));
+  }
+
+  Handle<Value> argv[1] = { error };
+  MakeCallback(p->handle_, onload_sym, 1, argv);
+  p->Unref();
 }
 
 
@@ -304,6 +382,7 @@ void PriPub::Init(v8::Handle<v8::Object> target) {
   // XXX: Seed random generator
 
   onpassword_sym = Persistent<String>::New(String::New("onpassword"));
+  onload_sym = Persistent<String>::New(String::New("onload"));
 
   Local<FunctionTemplate> t = FunctionTemplate::New(PriPub::New);
 
@@ -313,6 +392,7 @@ void PriPub::Init(v8::Handle<v8::Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "getPublicKey", PriPub::GetPublicKey);
   NODE_SET_PROTOTYPE_METHOD(t, "setPublicKey", PriPub::SetPublicKey);
   NODE_SET_PROTOTYPE_METHOD(t, "setPrivateKey", PriPub::SetPrivateKey);
+  NODE_SET_PROTOTYPE_METHOD(t, "setKeyPassword", PriPub::SetKeyPassword);
   NODE_SET_PROTOTYPE_METHOD(t, "encrypt", PriPub::Encrypt);
   NODE_SET_PROTOTYPE_METHOD(t, "decrypt", PriPub::Decrypt);
 

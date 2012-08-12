@@ -1,12 +1,27 @@
 var assert = require('assert'),
+    prompt = require('prompt'),
     pripub = require('..');
+
+prompt.start();
 
 describe('PriPub addon', function() {
   var p;
-  beforeEach(function() {
+  beforeEach(function(callback) {
     p = pripub.create({
-      password: process.env.PRIPUB_PASS
+      password: function(callback) {
+        var property = {
+          name: 'password',
+          message: 'Your private key password',
+          default: 'empty'
+        };
+
+        prompt.get(property, function(err, result) {
+          if (err) return callback();
+          callback(result.password);
+        });
+      }
     });
+    p.init(callback);
   });
 
   it('should load private/public key pairs', function() {
