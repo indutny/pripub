@@ -194,6 +194,7 @@ Handle<Value> PriPub::SetKeyPassword(const Arguments& args) {
   p->pri_pass_size_ = size;
 
   uv_sem_post(&p->password_sem_);
+  pthread_join(p->pri_thread_, NULL);
 
   return scope.Close(Null());
 }
