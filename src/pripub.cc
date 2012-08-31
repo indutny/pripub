@@ -194,7 +194,6 @@ Handle<Value> PriPub::SetKeyPassword(const Arguments& args) {
   p->pri_pass_size_ = size;
 
   uv_sem_post(&p->password_sem_);
-  pthread_join(p->pri_thread_, NULL);
 
   return scope.Close(Null());
 }
@@ -225,6 +224,8 @@ void PriPub::PasswordCallback(uv_async_t* handle, int status) {
 void PriPub::LoadCallback(uv_async_t* handle, int status) {
   HandleScope scope;
   PriPub* p = container_of(handle, PriPub, load_cb_);
+
+  pthread_join(p->pri_thread_, NULL);
 
   Handle<Value> error = Null();
   if (p->pri_rsa_ == NULL) {
