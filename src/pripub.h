@@ -52,4 +52,4 @@ class PriPub : public ObjectWrap {
 
 } // namespace pripub
 
-#endif _SRC_PRIPUB_H_
+#endif // _SRC_PRIPUB_H_
