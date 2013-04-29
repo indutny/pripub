@@ -8,6 +8,7 @@
 #include <openssl/evp.h>
 #include <openssl/pem.h>
 #include <pthread.h>
+#include <string.h> /* for memcpy */
 
 #define THROW_OPENSSL_ERROR(msg)\
     {\
