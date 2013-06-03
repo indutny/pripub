@@ -20,7 +20,7 @@ class PriPub : public ObjectWrap {
 
   static void Init(v8::Handle<v8::Object> target);
 
-  static void* PrivateKeyWorker(void* arg);
+  static void PrivateKeyWorker(void* arg);
   static void PasswordCallback(uv_async_t* handle, int status);
   static void LoadCallback(uv_async_t* handle, int status);
 
@@ -40,7 +40,7 @@ class PriPub : public ObjectWrap {
 
   uv_sem_t password_sem_;
 
-  pthread_t pri_thread_;
+  uv_thread_t pri_thread_;
   BIO* pri_bio_;
   char pri_pass_[1024];
   int pri_pass_size_;

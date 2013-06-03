@@ -7,7 +7,6 @@
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 #include <openssl/pem.h>
-#include <pthread.h>
 #include <string.h> /* for memcpy */
 
 #define THROW_OPENSSL_ERROR(msg)\
@@ -149,14 +148,14 @@ Handle<Value> PriPub::SetPrivateKey(const Arguments& args) {
   }
 
   p->pri_bio_ = bio;
-  pthread_create(&p->pri_thread_, NULL, PrivateKeyWorker, p);
+  uv_thread_create(&p->pri_thread_, PrivateKeyWorker, p);
   p->Ref();
 
   return scope.Close(Null());
 }
 
 
-void* PriPub::PrivateKeyWorker(void* arg) {
+void PriPub::PrivateKeyWorker(void* arg) {
   PriPub* p = reinterpret_cast<PriPub*>(arg);
 
   p->pri_rsa_ = PEM_read_bio_RSAPrivateKey(p->pri_bio_,
@@ -170,8 +169,6 @@ void* PriPub::PrivateKeyWorker(void* arg) {
   }
 
   uv_async_send(&p->load_cb_);
-
-  return NULL;
 }
 
 
@@ -226,7 +223,7 @@ void PriPub::LoadCallback(uv_async_t* handle, int status) {
   HandleScope scope;
   PriPub* p = container_of(handle, PriPub, load_cb_);
 
-  pthread_join(p->pri_thread_, NULL);
+  uv_thread_join(&p->pri_thread_);
 
   Handle<Value> error = Null();
   if (p->pri_rsa_ == NULL) {
