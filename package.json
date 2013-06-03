@@ -1,6 +1,6 @@
 {
   "name": "pripub",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "main": "lib/pripub",
   "dependencies": {
     "bindings": "~1.0.0"
