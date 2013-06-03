@@ -214,8 +214,7 @@ void PriPub::PasswordCallback(uv_async_t* handle, int status) {
   HandleScope scope;
   PriPub* p = container_of(handle, PriPub, password_cb_);
 
-  Handle<Value> argv[0];
-  MakeCallback(p->handle_, onpassword_sym, 0, argv);
+  MakeCallback(p->handle_, onpassword_sym, 0, NULL);
 }
 
 
